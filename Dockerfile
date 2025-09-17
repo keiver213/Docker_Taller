@@ -3,15 +3,13 @@ FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
-
-# Etapa 2: build (usa devDependencies para compilar)
-FROM node:22-alpine AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+# ⬅️ copiamos todo lo necesario para compilar
+COPY tsconfig.json ./
+COPY src ./src
+COPY scripts ./scripts 
 RUN npm run build
 
-# Etapa 3: runtime (solo prod deps + dist)
+# Etapa 2: runtime (solo prod deps + dist)
 FROM node:22-alpine AS runner
 WORKDIR /app
 
@@ -24,8 +22,10 @@ RUN apk add --no-cache curl
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Copiar compilados y node_modules
-COPY --from=builder /app/dist ./dist
+# Copiar compilados desde deps
+COPY --from=deps /app/dist ./dist
+COPY --from=deps /app/scripts ./scripts
+COPY --from=deps /app/src ./src
 
 EXPOSE 3000
 
